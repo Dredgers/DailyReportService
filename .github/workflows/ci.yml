@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Unit tests
+        run: dotnet test tests/DailyReport.Tests --no-build -c Release --logger "trx;LogFileName=unit.trx"
+
+      # GitHub's Ubuntu runners ship Docker, so Testcontainers can build the real schema here too.
+      # The fixture drift test skips itself when the sibling game repos are not checked out.
+      - name: Integration tests (Testcontainers Postgres)
+        run: dotnet test tests/DailyReport.IntegrationTests --no-build -c Release --logger "trx;LogFileName=integration.trx"
+
+      - name: Docker image builds
+        run: docker build --label app=dailyreport -t dr:ci .
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: "**/TestResults/*.trx"
+          if-no-files-found: ignore
