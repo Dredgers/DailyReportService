@@ -1,0 +1,85 @@
+Daily report
+Thursday 10 September 2026
+sent 2026-09-11
+============================================================================
+
+HEALTH
+----------------------------------------------------------------------------
+✅ PASS  Competitive Crosswords — Healthz: 200 OK (45 ms)
+✅ PASS  Competitive Crosswords — Puzzle published: Current (120 ms)
+✅ PASS  Competitive Crosswords — Puzzle queue: 5 approved and unused (80 ms)
+✅ PASS  Make Me Red — Healthz: 200 OK (30 ms)
+✅ PASS  Make Me Red — Puzzle published: Current (95 ms)
+⏭ SKIPPED  Make Me Red — WebSocket: not applicable to this game (0 ms)
+
+COMPETITIVE CROSSWORDS
+Thursday 10 September 2026 · Europe/Copenhagen
+----------------------------------------------------------------------------
+
+Traffic
+  Arrivals
+    Page loads, not unique visitors.
+      value            no data
+      vs day before    –
+      vs 7-day mean    –  (0/7 days)
+      vs same weekday  –
+  Games started
+      value            no data
+      vs day before    –
+      vs 7-day mean    –  (0/7 days)
+      vs same weekday  –
+
+Completions
+  Completed
+      value            no data
+      vs day before    –
+      vs 7-day mean    –  (0/7 days)
+      vs same weekday  –
+  Completed (signed-in)
+      value            no data
+      vs day before    –
+      vs 7-day mean    –  (0/7 days)
+      vs same weekday  –
+
+Return
+  Returned within 7 days (signed-in)
+    Signed-in players only.
+      value            no data
+      vs day before    –
+      vs 7-day mean    –  (0/7 days)
+      vs same weekday  –
+
+MAKE ME RED
+Thursday 10 September 2026 · UTC
+----------------------------------------------------------------------------
+
+Traffic
+  Arrivals
+      value            no data
+      vs day before    –
+      vs 7-day mean    –  (0/7 days)
+      vs same weekday  –
+
+Completions
+  Completed
+      value            no data
+      vs day before    –
+      vs 7-day mean    –  (0/7 days)
+      vs same weekday  –
+  Completed (signed-in)
+      value            no data
+      vs day before    –
+      vs 7-day mean    –  (0/7 days)
+      vs same weekday  –
+
+Return
+  Returned within 7 days (signed-in)
+    Signed-in players only.
+      value            no data
+      vs day before    –
+      vs 7-day mean    –  (0/7 days)
+      vs same weekday  –
+
+----------------------------------------------------------------------------
+Days are counted in each game's own zone: Competitive Crosswords in Europe/Copenhagen, Make Me Red in UTC.
+Generated 2026-09-11 05:00 UTC

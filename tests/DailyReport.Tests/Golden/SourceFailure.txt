@@ -1,0 +1,61 @@
+Daily report
+Thursday 10 September 2026
+sent 2026-09-11
+============================================================================
+
+1 THINGS NEED ATTENTION
+----------------------------------------------------------------------------
+- Make Me Red — Metrics: GoatCounter: 401 Unauthorized
+
+HEALTH
+----------------------------------------------------------------------------
+✅ PASS  Competitive Crosswords — Healthz: 200 OK (45 ms)
+✅ PASS  Competitive Crosswords — Puzzle published: Current (120 ms)
+✅ PASS  Competitive Crosswords — Puzzle queue: 5 approved and unused (80 ms)
+✅ PASS  Make Me Red — Healthz: 200 OK (30 ms)
+
+COMPETITIVE CROSSWORDS
+Thursday 10 September 2026 · Europe/Copenhagen
+----------------------------------------------------------------------------
+
+Traffic
+  Arrivals
+    Page loads, not unique visitors.
+      value            1,200
+      vs day before    ▲ 200 (+20.0%)
+      vs 7-day mean    ▲ 200 (+20.0%)
+      vs same weekday  ▲ 200 (+20.0%)
+  Games started
+      value            300
+      vs day before    = 0
+      vs 7-day mean    = 0
+      vs same weekday  ▲ 50 (+20.0%)
+
+Completions
+  Completed
+      value            150
+      vs day before    ▼ 50 (−25.0%)
+      vs 7-day mean    ▲ 150
+      vs same weekday  = 0
+  Completed (signed-in)
+      value            80
+      vs day before    ▲ 10 (+14.3%)
+      vs 7-day mean    ▲ 20 (+33.3%)  (3/7 days)
+      vs same weekday  = 0
+
+Return
+  Returned within 7 days (signed-in)
+    Signed-in players only.
+      value            42.0%
+      vs day before    ▲ 2.0 pp (+5.0%)
+      vs 7-day mean    ▲ 4.0 pp (+10.5%)
+      vs same weekday  ▼ 2.0 pp (−4.5%)
+
+MAKE ME RED
+Thursday 10 September 2026 · UTC
+----------------------------------------------------------------------------
+🔴 Metrics unavailable: GoatCounter: 401 Unauthorized
+
+----------------------------------------------------------------------------
+Days are counted in each game's own zone: Competitive Crosswords in Europe/Copenhagen, Make Me Red in UTC.
+Generated 2026-09-11 05:00 UTC
