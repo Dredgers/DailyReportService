@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <!-- The host: options, scheduler, the once and dry-run flags, Dockerfile. -->
+  <PropertyGroup>
+    <RootNamespace>DailyReport.Worker</RootNamespace>
+    <AssemblyName>DailyReport.Worker</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Cronos" Version="0.13.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DailyReport.Core\DailyReport.Core.csproj" />
+    <ProjectReference Include="..\DailyReport.Infrastructure\DailyReport.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pure: report model, composer, day maths, renderers. No I/O, no packages. -->
+</Project>

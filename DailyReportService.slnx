@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DailyReport.Core/DailyReport.Core.csproj" />
+    <Project Path="src/DailyReport.Infrastructure/DailyReport.Infrastructure.csproj" />
+    <Project Path="src/DailyReport.Worker/DailyReport.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DailyReport.IntegrationTests/DailyReport.IntegrationTests.csproj" />
+    <Project Path="tests/DailyReport.Tests/DailyReport.Tests.csproj" />
+  </Folder>
+</Solution>
