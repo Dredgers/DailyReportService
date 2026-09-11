@@ -1,4 +1,10 @@
 using DailyReport.Core.Configuration;
+using DailyReport.Infrastructure.Data;
+using DailyReport.Infrastructure.Delivery.Resend;
+using DailyReport.Infrastructure.Games;
+using DailyReport.Infrastructure.Probes;
+using DailyReport.Infrastructure.Sources.GoatCounter;
+using DailyReport.Infrastructure.State;
 using Microsoft.Extensions.Options;
 
 namespace DailyReport.Worker.Hosting;
@@ -20,6 +26,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IValidateOptions<GamesOptions>, GamesOptionsValidator>();
 
         services.AddSingleton(TimeProvider.System);
+
+        services.AddGamesDatabase(configuration);
+        services.AddGoatCounter(configuration);
+        services.AddMetricsProviders();
+        services.AddResend(configuration);
+        services.AddReportState();
+        services.AddHealthProbes(configuration);
+
         services.AddScoped<ReportRunner>();
 
         return services;

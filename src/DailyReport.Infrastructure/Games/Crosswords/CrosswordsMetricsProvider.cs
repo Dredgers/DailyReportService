@@ -48,6 +48,22 @@ public sealed class CrosswordsMetricsProvider(
             }
         }
 
+        try
+        {
+            series.AddRange(await CollectFromDatabaseAsync(game, window, cancellationToken));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "{Game}: database metrics failed", game.Key);
+            failures.Add(new SourceFailure(game.Key, "Database", $"{ex.GetType().Name}: {ex.Message}"));
+        }
+
+        return new MetricsResult(series, failures);
+    }
+
+    private async Task<List<DailySeries>> CollectFromDatabaseAsync(GameOptions game, ReportWindow window, CancellationToken cancellationToken)
+    {
+        var series = new List<DailySeries>();
         await using var ctx = database.CreateContext();
         var days = window.SeriesDays;
         var range = window.QueryRange;
@@ -92,7 +108,7 @@ public sealed class CrosswordsMetricsProvider(
             new MetricDefinition($"{game.Key}.return_cohort", "Return", "Return cohort", Lane.SignedIn, MetricUnit.Count, "signed-in players who completed a puzzle seven days earlier"),
             days, d => returns[d].Cohort));
 
-        return new MetricsResult(series, failures);
+        return series;
     }
 
     private static async Task<Dictionary<DateOnly, int>> CountEventsByDayAsync(

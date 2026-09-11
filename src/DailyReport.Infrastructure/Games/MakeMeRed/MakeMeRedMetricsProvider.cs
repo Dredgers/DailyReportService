@@ -72,6 +72,23 @@ public sealed class MakeMeRedMetricsProvider(
             }
         }
 
+        try
+        {
+            series.AddRange(await CollectFromDatabaseAsync(game, window, cancellationToken));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "{Game}: database metrics failed", game.Key);
+            failures.Add(new SourceFailure(game.Key, "Database", $"{ex.GetType().Name}: {ex.Message}"));
+        }
+
+        return new MetricsResult(series, failures);
+    }
+
+    private async Task<List<DailySeries>> CollectFromDatabaseAsync(GameOptions game, ReportWindow window, CancellationToken cancellationToken)
+    {
+        var series = new List<DailySeries>();
+        var days = window.SeriesDays;
         await using var ctx = database.CreateContext();
         var firstDate = DateKey(ReportWindow.CohortDayFor(days[0]));
         var lastDate = DateKey(days[^1]);
@@ -102,7 +119,7 @@ public sealed class MakeMeRedMetricsProvider(
             new MetricDefinition($"{game.Key}.return_cohort", "Return", "Return cohort", Lane.SignedIn, MetricUnit.Count, "signed-in players who completed a Red seven days earlier"),
             days, d => returns[d].Cohort));
 
-        return new MetricsResult(series, failures);
+        return series;
     }
 
     private static string DateKey(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

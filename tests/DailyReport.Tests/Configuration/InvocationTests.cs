@@ -5,16 +5,26 @@ namespace DailyReport.Tests.Configuration;
 public sealed class InvocationTests
 {
     [Test]
-    public void Once_with_dry_run_and_date()
+    public void Once_with_dry_run_date_and_force()
     {
-        var i = Invocation.Parse(["--once", "--dry-run", "--date=2026-09-10"]);
-        Assert.That(i, Is.EqualTo(new Invocation(true, true, new DateOnly(2026, 9, 10))));
+        var i = Invocation.Parse(["--once", "--dry-run", "--date=2026-09-10", "--force"]);
+        Assert.That(i, Is.EqualTo(new Invocation(true, true, new DateOnly(2026, 9, 10), true, false)));
     }
 
     [Test]
     public void No_args_is_the_scheduler()
     {
-        Assert.That(Invocation.Parse([]), Is.EqualTo(new Invocation(false, false, null)));
+        Assert.That(Invocation.Parse([]), Is.EqualTo(new Invocation(false, false, null, false, false)));
+    }
+
+    [Test]
+    public void Healthcheck_stands_alone()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(Invocation.Parse(["--healthcheck"]).HealthCheck, Is.True);
+            Assert.That(() => Invocation.Parse(["--healthcheck", "--once"]), Throws.ArgumentException);
+        });
     }
 
     [Test]

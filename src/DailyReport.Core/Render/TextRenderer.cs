@@ -60,7 +60,7 @@ public static class TextRenderer
     private static string RedBannerBlock(Report report, IReadOnlyDictionary<string, string> names)
     {
         var sb = new StringBuilder();
-        sb.Append(report.RedCount).Append(" THINGS NEED ATTENTION").Append('\n');
+        sb.Append(RenderSupport.Pluralise(report.RedCount, "THING NEEDS ATTENTION", "THINGS NEED ATTENTION")).Append('\n');
         sb.Append(Rule('-'));
 
         foreach (var c in report.Health.Where(c => c.IsRed))

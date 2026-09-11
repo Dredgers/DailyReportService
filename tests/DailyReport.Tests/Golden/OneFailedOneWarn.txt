@@ -3,7 +3,7 @@ Thursday 10 September 2026
 sent 2026-09-11
 ============================================================================
 
-1 THINGS NEED ATTENTION
+THING NEEDS ATTENTION
 ----------------------------------------------------------------------------
 - Competitive Crosswords — Puzzle published: currentPublishedAt is 2 days stale
 

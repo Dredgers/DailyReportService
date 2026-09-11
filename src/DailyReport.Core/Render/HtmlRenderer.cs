@@ -94,7 +94,7 @@ public static class HtmlRenderer
         L("<tr><td style=\"padding:0 24px 16px 24px;\">");
         L($"<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color:{RedBackground};border-radius:6px;\">");
         L("<tr><td style=\"padding:16px 20px;\">");
-        L($"<div style=\"font-size:16px;font-weight:700;color:#ffffff;margin-bottom:8px;\">{report.RedCount} things need attention</div>");
+        L($"<div style=\"font-size:16px;font-weight:700;color:#ffffff;margin-bottom:8px;\">{RenderSupport.Pluralise(report.RedCount, "thing needs attention", "things need attention")}</div>");
         L("<ul style=\"margin:0;padding-left:20px;color:#ffffff;font-size:13px;line-height:19px;\">");
 
         foreach (var c in report.Health.Where(c => c.IsRed))

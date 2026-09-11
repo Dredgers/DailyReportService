@@ -99,3 +99,39 @@ public sealed class MakeMeRedMetricsProviderTests
         });
     }
 }
+
+public sealed class MakeMeRedPartialFailureTests
+{
+    private static readonly ReportWindow Window = new(new DateOnly(2026, 9, 11), TimeZoneInfo.Utc);
+
+    [Test]
+    public async Task An_unreachable_database_keeps_the_goatcounter_lines_and_reports_both_halves_honestly()
+    {
+        var game = new GameOptions
+        {
+            Key = "makemered", Name = "Make Me Red", BaseUrl = "https://makeme.red", DayTimeZone = "UTC",
+            Metrics = new MetricsOptions { Provider = MetricsProvider.MakeMeRed, Arrivals = ArrivalsSource.GoatCounter },
+            GoatCounter = new GoatCounterOptions { Site = "makemered", TokenEnv = "GOATCOUNTER_MMR_TOKEN" },
+        };
+        var fake = new FakeGoatCounterClient();
+        fake.Visits[Window.GameDay] = 9;
+
+        var result = await new MakeMeRedMetricsProvider(new UnreachableDatabase(), fake, NullLogger<MakeMeRedMetricsProvider>.Instance).CollectAsync(game, Window, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Failures.Select(f => f.Section), Is.EqualTo(new[] { "Database" }));
+            Assert.That(result.Failures[0].Summary, Does.Contain("REPORT_DB_CONNECTION"));
+            Assert.That(result.Series.Single(s => s.Definition.Key == "makemered.arrivals").On(Window.GameDay), Is.EqualTo(9));
+            Assert.That(result.Series.Select(s => s.Definition.Key), Does.Not.Contain("makemered.return_rate"));
+        });
+
+        var both = await new MakeMeRedMetricsProvider(new UnreachableDatabase(), FakeGoatCounterClient.MissingToken(), NullLogger<MakeMeRedMetricsProvider>.Instance).CollectAsync(game, Window, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(both.Series, Is.Empty);
+            Assert.That(both.Failures.Select(f => f.Section), Is.EquivalentTo(new[] { "GoatCounter", "Database" }));
+        });
+    }
+}

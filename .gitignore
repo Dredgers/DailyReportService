@@ -483,3 +483,7 @@ $RECYCLE.BIN/
 
 # Agent worktrees live inside the repo; never commit them.
 .claude/worktrees/
+
+# Local run archive and SQLite state (anchored: Infrastructure/Data must never be ignored on a case-insensitive filesystem).
+/data/
+/src/DailyReport.Worker/data/

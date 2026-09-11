@@ -64,3 +64,9 @@ public sealed class FakeGoatCounterClient : IGoatCounterClient
         return Task.FromResult<IReadOnlyList<GoatCounterReferrer>>([]);
     }
 }
+
+/// <summary>A database that cannot be reached: the secret is missing, exactly as on a box without REPORT_DB_CONNECTION.</summary>
+public sealed class UnreachableDatabase : IGamesDatabase
+{
+    public GamesDbContext CreateContext() => throw new MissingSecretException("REPORT_DB_CONNECTION");
+}
