@@ -20,6 +20,49 @@ real inbox until R11 has passed.
 
 ---
 
+## Status, 2026-09-11 evening
+
+| Job | State | Commit |
+|---|---|---|
+| R1 skeleton | done | `b9c45e8` |
+| R2 model, day maths, composer | done | `4154754` |
+| R3 renderers | done | `98b4e0d` |
+| R4 read model, `report_ro`, fixtures | done | `d8d718b` |
+| R5a / R5b metrics providers | done | `754a7d4` |
+| R6 GoatCounter client | done | `dae8ea1` |
+| R7 health probes v1 | done | `4462af5` |
+| R8 Resend sender | done | `e6f4ebe` |
+| R9 orchestration, scheduler, state, health check | done | `a59c1c6` |
+| R10 deploy | script + runbook written (`c05c0e2`); not yet run on the box, `report_ro` not yet created, no real send | |
+| R11 adversarial review | in progress | |
+
+Test counts at this point: 133 unit, 11 integration (Testcontainers Postgres built from both
+games' real SQL). `dotnet run --project src/DailyReport.Worker -- --once --dry-run` works end to
+end against the live sites with no secrets: the database and GoatCounter sections go red, the
+probes run for real.
+
+### Found on the way, not in the brief
+
+- **Competitive Crosswords' daily has not rotated since 2026-09-04 23:28 Europe/Copenhagen.**
+  The very first dry run's "Puzzle published" check failed: `/api/puzzles` reports
+  `currentPublishedAt` a week old while `/healthz` says the process has been up 6d 16h with 15
+  puzzles loaded. Either `syncPuzzlesAndDaily()` is not promoting (its 30-minute timer, or the
+  puzzle-source project is unreachable) or the approved queue is empty and the recycle path is
+  failing too. Worth looking at in the crosswords repo before anything else.
+- **`cc_dashboard_ro` can read nothing.** Every crosswords table has RLS on; a role with SELECT
+  but no policy gets zero rows and no error. `sql/report_ro.sql` here creates a per-table read
+  policy for `report_ro` for that reason (and the integration tests prove it reads). The Grafana
+  datasource in `CompetitiveCrosswords/ops/grafana` will have the same problem if it is ever
+  turned on.
+- **GoatCounter's v0 API exposes one number per day** (visitors, a cookieless daily unique), not
+  visits and pageviews separately. "Arrivals" for a GoatCounter game means visitors.
+- **This Mac had no Docker.** `/usr/local/bin/docker` was a dangling symlink from 2022; Colima
+  and the Docker CLI were installed with Homebrew (no sudo) and Testcontainers runs through it.
+  The .NET 10 SDK is user-local at `~/.dotnet`; both are on PATH via `~/.zshrc`.
+- **The provider contract grew a failure list** (`MetricsResult`): a dead GoatCounter fails its
+  own lines while the database lines still report, and vice versa. Decided while building, in
+  the spirit of "never skip the email".
+
 ## What the two games actually expose
 
 Both games run as Docker containers on one Hetzner box behind Caddy, share one
@@ -128,8 +171,8 @@ Schema for both apps is hand-run SQL in the Supabase dashboard:
 Open:
 
 - [ ] **Hosting.** Recommendation: third container on the Hetzner box, same
-      `ops/deploy.sh` shape as the other two apps, no inbound port. Alternatives and
-      trade-offs are in the 2026-09-11 conversation summary below.
+      `ops/deploy.sh` shape as the other two apps, no inbound port. `ops/deploy.sh` and
+      `docs/DEPLOY.md` are written for that option; the image is the same anywhere.
 - [ ] **Sender domain.** "Neutral" needs a domain verified in Resend (DNS records).
       Until one exists, R8 is tested against a stub and the first real send can use
       Resend's onboarding sender to the account's own address.
