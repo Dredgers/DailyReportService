@@ -2,6 +2,7 @@ using DailyReport.Core.Abstractions;
 using DailyReport.Core.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DailyReport.Infrastructure.Probes;
 
@@ -24,6 +25,9 @@ public static class ProbeServiceCollectionExtensions
             c.Timeout = Timeout.InfiniteTimeSpan;
             c.DefaultRequestHeaders.UserAgent.ParseAdd("DailyReportService/1.0 (+https://github.com/Dredgers/DailyReportService)");
         });
+
+        // The puzzle probes judge "today" from the clock, not the report date; tests substitute a fixed one first.
+        services.TryAddSingleton(TimeProvider.System);
 
         services.AddSingleton<IHealthProbe, HealthzProbe>();
         services.AddSingleton<IHealthProbe, CrosswordsPuzzlePublishedProbe>();

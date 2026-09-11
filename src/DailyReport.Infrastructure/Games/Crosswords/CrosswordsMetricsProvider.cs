@@ -41,7 +41,7 @@ public sealed class CrosswordsMetricsProvider(
             {
                 series.Add(await GoatCounterArrivals.CollectAsync(goatCounter, game, window, cancellationToken));
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 logger.LogWarning(ex, "{Game}: GoatCounter arrivals failed", game.Key);
                 failures.Add(new SourceFailure(game.Key, "Arrivals (GoatCounter)", $"{ex.GetType().Name}: {ex.Message}"));
@@ -52,7 +52,7 @@ public sealed class CrosswordsMetricsProvider(
         {
             series.AddRange(await CollectFromDatabaseAsync(game, window, cancellationToken));
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning(ex, "{Game}: database metrics failed", game.Key);
             failures.Add(new SourceFailure(game.Key, "Database", $"{ex.GetType().Name}: {ex.Message}"));

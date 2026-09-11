@@ -65,15 +65,39 @@ docker logs --tail 5 "$NAME"
 
 echo
 echo "── Smoke test: dry run of today's report (nothing is sent) ──"
-if docker exec "$NAME" dotnet DailyReport.Worker.dll --once --dry-run; then
-  echo
-  echo "✓ Deployed ${NAME}:${SHA} (main). Read the dry run above: every red line is a real"
-  echo "  finding or a missing secret. To send now instead of waiting for 07:00:"
-  echo "    docker exec ${NAME} dotnet DailyReport.Worker.dll --once"
-  docker image prune -f --filter "label=app=dailyreport" > /dev/null
-  exit 0
-fi
+set +e
+docker exec "$NAME" dotnet DailyReport.Worker.dll --once --dry-run
+rc=$?
+set -e
 
-echo "✗ The dry run failed — the container is live but the report cannot be produced. Logs:"
-docker logs --tail 60 "$NAME" || true
-exit 1
+prune_old_images() {
+  # `docker image prune` never touches tagged images, so old dr:<sha> tags would pile up for ever on the
+  # shared box. Keep :latest, the one just deployed, and the newest previous one (the rollback target).
+  docker image prune -f --filter "label=app=dailyreport" > /dev/null
+  docker image ls "$NAME" --format '{{.Repository}}:{{.Tag}}' \
+    | grep -v -e ':latest$' -e ":${SHA}$" \
+    | tail -n +2 \
+    | xargs -r docker rmi > /dev/null 2>&1 || true
+}
+
+case "$rc" in
+  0)
+    echo
+    echo "✓ Deployed ${NAME}:${SHA} (main). The dry run above is all green."
+    ;;
+  2)
+    echo
+    echo "⚠ Deployed ${NAME}:${SHA} (main), but the dry run above has red lines. Each one is either a real"
+    echo "  finding about a game (go look) or a missing secret in ${ENV_FILE} (fix it and redeploy)."
+    echo "  The container is live and will send at 07:00 either way."
+    ;;
+  *)
+    echo "✗ The dry run failed (exit ${rc}) — the container is live but the report cannot be produced. Logs:"
+    docker logs --tail 60 "$NAME" || true
+    exit 1
+    ;;
+esac
+
+echo "  To send now instead of waiting for 07:00:  docker exec ${NAME} dotnet DailyReport.Worker.dll --once"
+prune_old_images
+exit 0

@@ -18,8 +18,11 @@ ssh box
 
 The script pulls `main`, builds `dr:<sha>`, restarts the container, waits for the scheduler's
 first log line, then runs `--once --dry-run` inside the container and prints the report to your
-terminal. Nothing is sent. Every red line in that output is either a real finding about the games
-or a missing secret; fix the secret and redeploy, or read the finding and go fix the game.
+terminal. Nothing is sent. A dry run exits 0 when all is green and 2 when the report has red
+lines, and the script says ✓ or ⚠ accordingly; the container is live in both cases. Every red
+line is either a real finding about the games or a missing secret; fix the secret and redeploy,
+or read the finding and go fix the game. Dry runs are archived as `<date>-dryrun.html` so they
+never overwrite the report that was actually sent.
 
 To send today's report right away instead of waiting for 07:00:
 
@@ -28,33 +31,41 @@ docker exec dr dotnet DailyReport.Worker.dll --once
 ```
 
 The runner refuses to send the same report date twice; add `--force` to resend, and
-`--date=YYYY-MM-DD` to re-run a past day (the database queries are date-bounded, so a past day
-is exact; the probes always describe *now*).
+`--date=YYYY-MM-DD` to re-run a past day. The database queries are date-bounded, so a past
+day's numbers are exact; the health probes always describe *now*, whatever date is being
+re-run. Unknown or misspelt flags are rejected rather than ignored, so `--dryrun` cannot turn
+into a real send.
 
 ## 1. One-time setup
 
 ### 1a. The read-only database role
 
 In the Supabase dashboard of the shared project, SQL editor, paste `sql/report_ro.sql` after
-replacing `CHANGE_ME_STRONG_PASSWORD` with a real password. Run it. The two SELECTs at the end
-should list twelve tables with `SELECT` and twelve `report_ro: read` policies. Both games'
-tables are covered; the policies matter because every table has row level security on and a
-role with no policy sees zero rows without any error.
+replacing `CHANGE_ME_STRONG_PASSWORD` with a real password. Run it. The SELECTs at the end
+should list nine tables with table-level `SELECT`, three with column-level `SELECT` (`users`
+without email, the two ghost tables without the recordings), and twelve `report_ro: read`
+policies. The policies matter because every table has row level security on and a role with no
+policy sees zero rows without any error.
 
 Build the connection string for `.env` from the **session pooler** (Project Settings →
 Database → Connection string → Session mode, port 5432), swapping the user for
 `report_ro.<project-ref>`:
 
 ```
-Host=aws-0-eu-west-3.pooler.supabase.com;Port=5432;Database=postgres;Username=report_ro.<project-ref>;Password=…;SSL Mode=Require
+Host=aws-0-eu-west-3.pooler.supabase.com;Port=5432;Database=postgres;Username=report_ro.<project-ref>;Password=…;SSL Mode=VerifyFull
 ```
+
+`VerifyFull` checks the pooler's certificate against the system trust store, which the image
+has. If it refuses to connect, fall back to `SSL Mode=Require` and say so in the jobs doc.
 
 ### 1b. GoatCounter
 
-On `makemered.goatcounter.com`: Settings → API → new token with **read statistics**. Also set
-the site's time zone to **UTC** (Settings → Site) so GoatCounter's days line up with Make Me
-Red's UTC game day; otherwise arrivals and completions are bucketed on Copenhagen days while
-the signed-in numbers are not.
+On `makemered.goatcounter.com`: Settings → API → new token with **read statistics**. GoatCounter
+buckets the API's daily numbers in a configured time zone (it appears to be the user's setting
+rather than a per-site one; unverified). Set it to **UTC** so GoatCounter's days line up with
+Make Me Red's UTC game day, then verify once by comparing one day's total from the API with the
+dashboard. Otherwise arrivals and completions land on Copenhagen days while the signed-in
+numbers do not.
 
 When Competitive Crosswords gets its own GoatCounter site, add a token, flip its
 `Metrics:Arrivals` to `GoatCounter` and add a `GoatCounter` block in `appsettings.json`, commit,
@@ -102,7 +113,7 @@ docker run --rm -v dr-data:/data alpine ls -la /data /data/reports   # the SQLit
 ```
 
 The Docker `HEALTHCHECK` runs `--healthcheck` every 30 minutes and turns the container
-unhealthy after 26 hours without a successful run. Nothing acts on that yet; `docker ps` shows
+unhealthy after three consecutive failures, i.e. 26 hours without a successful run. Nothing acts on that yet; `docker ps` shows
 it, and a missing morning email is the signal that matters.
 
 ## 3. Rollback

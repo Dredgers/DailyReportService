@@ -40,8 +40,7 @@ public sealed class ResendEmailSenderTests
             Assert.That(request.RequestUri, Is.EqualTo(new Uri("https://api.resend.com/emails")));
             Assert.That(request.Headers.Authorization?.Scheme, Is.EqualTo("Bearer"));
             Assert.That(request.Headers.Authorization?.Parameter, Is.EqualTo("re_abc123"));
-            Assert.That(request.Headers.GetValues("Idempotency-Key").Single(),
-                Is.EqualTo(ResendEmailSender.CreateIdempotencyKey(Message.Subject, Message.To)));
+            Assert.That(request.Headers.GetValues("Idempotency-Key").Single(), Does.Match("^dr-[0-9a-f]{32}$"));
         });
 
         using var body = JsonDocument.Parse(handler.LastRequestBody!);
@@ -58,29 +57,22 @@ public sealed class ResendEmailSenderTests
     }
 
     [Test]
-    public void Same_message_produces_the_same_idempotency_key()
+    public async Task Each_send_carries_a_fresh_well_formed_idempotency_key()
     {
-        var first = ResendEmailSender.CreateIdempotencyKey(Message.Subject, Message.To);
-        var second = ResendEmailSender.CreateIdempotencyKey(Message.Subject, Message.To);
+        var handler = new RecordingHttpMessageHandler(HttpStatusCode.OK, """{"id":"49a3999c-0ce1-4ea6-ab68-afcd6dc2e794"}""");
+        var sender = BuildSender(handler);
 
-        Assert.That(first, Is.EqualTo(second));
-    }
+        await sender.SendAsync(Message, CancellationToken.None);
+        var first = handler.LastRequest!.Headers.GetValues("Idempotency-Key").Single();
+        await sender.SendAsync(Message, CancellationToken.None);
+        var second = handler.LastRequest!.Headers.GetValues("Idempotency-Key").Single();
 
-    [Test]
-    public void Different_subject_produces_a_different_idempotency_key()
-    {
-        var first = ResendEmailSender.CreateIdempotencyKey("Daily report 2026-09-11 · all green", Message.To);
-        var second = ResendEmailSender.CreateIdempotencyKey("Daily report 2026-09-12 · all green", Message.To);
-
-        Assert.That(first, Is.Not.EqualTo(second));
-    }
-
-    [Test]
-    public void Idempotency_key_matches_the_expected_format()
-    {
-        var key = ResendEmailSender.CreateIdempotencyKey(Message.Subject, Message.To);
-
-        Assert.That(key, Does.Match("^dr-[0-9a-f]{32}$"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(first, Does.Match("^dr-[0-9a-f]{32}$"));
+            Assert.That(second, Does.Match("^dr-[0-9a-f]{32}$"));
+            Assert.That(first, Is.Not.EqualTo(second), "a forced resend must not collide with the morning's key");
+        });
     }
 
     [Test]

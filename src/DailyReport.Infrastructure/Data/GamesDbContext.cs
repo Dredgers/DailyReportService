@@ -44,9 +44,6 @@ public sealed class GamesDbContext(DbContextOptions<GamesDbContext> options) : D
             e.ToTable("users");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.Email).HasColumnName("email");
-            e.Property(x => x.DisplayName).HasColumnName("display_name");
-            e.Property(x => x.ColourKey).HasColumnName("colour_key");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
             e.Property(x => x.GhostConsent).HasColumnName("ghost_consent");
         });
@@ -163,7 +160,6 @@ public sealed class GamesDbContext(DbContextOptions<GamesDbContext> options) : D
             e.Property(x => x.GhostId).HasColumnName("ghost_id");
             e.Property(x => x.UserId).HasColumnName("user_id");
             e.Property(x => x.PuzzleId).HasColumnName("puzzle_id");
-            e.Property(x => x.DisplayName).HasColumnName("display_name");
             e.Property(x => x.SchemaVersion).HasColumnName("schema_version");
             e.Property(x => x.PaceSpl).HasColumnName("pace_spl");
             e.Property(x => x.RatingSnapshot).HasColumnName("rating_snapshot");

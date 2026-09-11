@@ -10,8 +10,6 @@ namespace DailyReport.Infrastructure.Sources.GoatCounter;
 /// call even for a run with no GoatCounter-backed game configured, since nothing here touches the network.</summary>
 public static class GoatCounterServiceCollectionExtensions
 {
-    private static readonly TimeSpan HttpClientTimeout = TimeSpan.FromSeconds(30);
-
     public static IServiceCollection AddGoatCounter(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<GoatCounterClientOptions>()
@@ -20,7 +18,13 @@ public static class GoatCounterServiceCollectionExtensions
         // Environment-backed by default; tests substitute a fake before resolving the client.
         services.TryAddSingleton<ISecretReader, EnvironmentSecretReader>();
 
-        services.AddHttpClient(GoatCounterClient.HttpClientName, client => client.Timeout = HttpClientTimeout)
+        // No HttpClient.Timeout: the standard resilience handler's total timeout (30 s) is the only clock, so a stall
+        // surfaces as Polly's TimeoutRejectedException, which the providers report as a section failure.
+        services.AddHttpClient(GoatCounterClient.HttpClientName, client =>
+            {
+                client.Timeout = Timeout.InfiniteTimeSpan;
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("DailyReportService/1.0 (+https://github.com/Dredgers/DailyReportService)");
+            })
             .AddStandardResilienceHandler();
 
         services.TryAddSingleton<IGoatCounterClient, GoatCounterClient>();

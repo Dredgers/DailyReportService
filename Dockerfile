@@ -25,6 +25,6 @@ ENV DOTNET_ENVIRONMENT=Production \
 VOLUME ["/data"]
 USER app
 COPY --from=build /app .
-HEALTHCHECK --interval=30m --timeout=20s --start-period=1m --retries=1 \
+HEALTHCHECK --interval=30m --timeout=20s --start-period=1m --retries=3 \
   CMD ["dotnet", "DailyReport.Worker.dll", "--healthcheck"]
 ENTRYPOINT ["dotnet", "DailyReport.Worker.dll"]

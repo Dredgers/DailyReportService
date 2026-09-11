@@ -5,16 +5,13 @@ namespace DailyReport.Infrastructure.Data;
 // mapped column, so a drift here fails a test rather than a morning report.
 // jsonb payloads (clue_events, opponents, settings) are deliberately not mapped: the report never reads them.
 
-/// <summary>public.users (crosswords schema.sql + named_ghosts.sql). One row per account, created by the auth trigger.</summary>
+/// <summary>
+/// public.users (crosswords schema.sql + named_ghosts.sql). One row per account, created by the auth trigger.
+/// Only the columns the report needs are mapped and granted: email, display name and colour stay out of reach.
+/// </summary>
 public sealed class User
 {
     public Guid Id { get; init; }
-
-    public string? Email { get; init; }
-
-    public string? DisplayName { get; init; }
-
-    public string? ColourKey { get; init; }
 
     public DateTimeOffset? CreatedAt { get; init; }
 
@@ -186,8 +183,6 @@ public sealed class NamedGhost
     public Guid UserId { get; init; }
 
     public string PuzzleId { get; init; } = "";
-
-    public string DisplayName { get; init; } = "";
 
     public short SchemaVersion { get; init; }
 

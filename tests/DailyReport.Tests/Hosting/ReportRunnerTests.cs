@@ -77,7 +77,7 @@ public sealed class ReportRunnerTests
     {
         var runner = Build(providers: [FakeProvider.Throwing(MetricsProvider.Crosswords, "connection refused"), FakeProvider.Healthy(MetricsProvider.MakeMeRed)]);
 
-        var outcome = await runner.RunAsync(Today, dryRun: false, force: false, "test", default);
+        var outcome = (await runner.RunAsync(Today, dryRun: false, force: false, "test", default)).Outcome;
 
         Assert.Multiple(() =>
         {
@@ -94,7 +94,7 @@ public sealed class ReportRunnerTests
         var runner = Build(providers: [FakeProvider.Hanging(MetricsProvider.Crosswords), FakeProvider.Healthy(MetricsProvider.MakeMeRed)], sectionTimeoutSeconds: 1);
 
         var started = DateTime.UtcNow;
-        var outcome = await runner.RunAsync(Today, dryRun: false, force: false, "test", default);
+        var outcome = (await runner.RunAsync(Today, dryRun: false, force: false, "test", default)).Outcome;
 
         Assert.Multiple(() =>
         {
@@ -148,7 +148,7 @@ public sealed class ReportRunnerTests
     [Test]
     public async Task Dry_run_sends_nothing_and_does_not_count_as_sent()
     {
-        var outcome = await Build().RunAsync(Today, dryRun: true, force: false, "once", default);
+        var outcome = (await Build().RunAsync(Today, dryRun: true, force: false, "once", default)).Outcome;
 
         Assert.Multiple(async () =>
         {
@@ -156,7 +156,35 @@ public sealed class ReportRunnerTests
             Assert.That(email.Sent, Is.Empty);
             Assert.That(await store.WasSentAsync(Today, default), Is.False);
             Assert.That(await store.LastSuccessAsync(default), Is.Not.Null, "a dry run still proves the pipeline works");
-            Assert.That(File.Exists(Path.Combine(state.Directory, "reports", "2026-09-11.txt")), Is.True);
+            Assert.That(File.Exists(Path.Combine(state.Directory, "reports", "2026-09-11-dryrun.txt")), Is.True, "a dry run never overwrites the sent report's archive");
+        });
+    }
+
+    [Test]
+    public async Task A_dry_run_with_red_lines_exits_2_so_a_deploy_can_show_amber()
+    {
+        var green = await Build().RunOnceAsync(Once(dryRun: true), default);
+        var red = await Build(probes: [FakeProbe.Failing("Site up")]).RunOnceAsync(Once(dryRun: true), default);
+
+        Assert.That((green, red), Is.EqualTo((0, 2)));
+    }
+
+    [Test]
+    public async Task An_unwritable_archive_does_not_stop_the_email()
+    {
+        // Point the archive at a path that is a file, so creating "<it>/reports" throws.
+        var blocker = Path.Combine(state.Directory, "blocker");
+        File.WriteAllText(blocker, "not a directory");
+        var report = new ReportOptions { To = ["someone@example.invalid"], From = "report@example.invalid", StateDirectory = blocker };
+        var games = new GamesOptions { Games = [new GameOptions { Key = "makemered", Name = "Make Me Red", BaseUrl = "https://makeme.red", DayTimeZone = "UTC", Metrics = new MetricsOptions { Provider = MetricsProvider.MakeMeRed } }] };
+        var runner = new ReportRunner(Options.Create(report), Options.Create(games), [FakeProvider.Healthy(MetricsProvider.MakeMeRed)], [FakeProbe.Passing("Site up")], email, store, new FixedClock(Now), NullLogger<ReportRunner>.Instance);
+
+        var result = await runner.RunAsync(Today, dryRun: false, force: false, "test", default);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Outcome, Is.EqualTo(RunOutcome.Sent));
+            Assert.That(email.Sent, Has.Count.EqualTo(1));
         });
     }
 
@@ -165,9 +193,9 @@ public sealed class ReportRunnerTests
     {
         var runner = Build();
 
-        var first = await runner.RunAsync(Today, dryRun: false, force: false, "schedule", default);
-        var second = await runner.RunAsync(Today, dryRun: false, force: false, "catch-up", default);
-        var forced = await runner.RunAsync(Today, dryRun: false, force: true, "once", default);
+        var first = (await runner.RunAsync(Today, dryRun: false, force: false, "schedule", default)).Outcome;
+        var second = (await runner.RunAsync(Today, dryRun: false, force: false, "catch-up", default)).Outcome;
+        var forced = (await runner.RunAsync(Today, dryRun: false, force: true, "once", default)).Outcome;
 
         Assert.Multiple(() =>
         {

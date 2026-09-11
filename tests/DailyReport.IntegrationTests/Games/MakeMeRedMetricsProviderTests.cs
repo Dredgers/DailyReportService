@@ -53,6 +53,8 @@ public sealed class MakeMeRedMetricsProviderTests
         await data.AddMmrResultAsync(a, day, "three", completedAt: noon);
         await data.AddMmrResultAsync(a, day, "four", completedAt: noon);
         await data.AddMmrResultAsync(b, day, "three", completedAt: null, moves: null, timeMs: null, verified: false, attempts: null);
+        // B also merged guest history for "four" on the game day: completed_at set but unverified, so it must not count.
+        await data.AddMmrResultAsync(b, day, "four", completedAt: noon, verified: false);
         await data.AddMmrResultAsync(c, day, "five", completedAt: noon);
 
         var result = await new MakeMeRedMetricsProvider(new ReportRoDatabase(), fake, NullLogger<MakeMeRedMetricsProvider>.Instance).CollectAsync(Game, Window, CancellationToken.None);
@@ -74,7 +76,7 @@ public sealed class MakeMeRedMetricsProviderTests
             Assert.That(series["makemered.completions.five"].On(day), Is.EqualTo(0), "no events means zero, not missing");
             Assert.That(series["makemered.shares"].On(day), Is.EqualTo(3));
             Assert.That(series["makemered.completions.three.signed_in"].On(day), Is.EqualTo(1), "A; B never completed");
-            Assert.That(series["makemered.completions.four.signed_in"].On(day), Is.EqualTo(1));
+            Assert.That(series["makemered.completions.four.signed_in"].On(day), Is.EqualTo(1), "A only; B's merged, unverified row is excluded");
             Assert.That(series["makemered.completions.five.signed_in"].On(day), Is.EqualTo(1));
             Assert.That(series["makemered.completions.five.signed_in"].Definition.Lane, Is.EqualTo(Lane.SignedIn));
             Assert.That(series["makemered.return_cohort"].On(day), Is.EqualTo(2));

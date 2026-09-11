@@ -52,7 +52,7 @@ public sealed class ResendEmailSender : IEmailSender
             Content = JsonContent.Create(body, options: SerializerOptions),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
-        request.Headers.Add("Idempotency-Key", CreateIdempotencyKey(message.Subject, message.To));
+        request.Headers.Add("Idempotency-Key", CreateIdempotencyKey());
 
         var httpClient = _httpClientFactory.CreateClient(HttpClientName);
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -78,15 +78,14 @@ public sealed class ResendEmailSender : IEmailSender
         return new EmailReceipt(id);
     }
 
-    /// <summary>`dr-` plus the first 32 hex characters of SHA-256(subject + "\n" + to joined by commas). The
-    /// subject carries the report date, so retrying the same day's send reuses the key while a different
-    /// day's report gets a fresh one.</summary>
-    public static string CreateIdempotencyKey(string subject, IReadOnlyList<string> to)
-    {
-        var input = subject + "\n" + string.Join(",", to);
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-        return "dr-" + Convert.ToHexStringLower(hash)[..32];
-    }
+    /// <summary>
+    /// A fresh key per send attempt. The resilience handler's retries inside one attempt reuse the same request,
+    /// so a POST that timed out after landing is not duplicated; a deliberate resend (--force, or a catch-up after
+    /// a crash between send and record) gets a new key and goes through. Resend keeps a key for 24 h and answers
+    /// 409 when the payload differs, and every render differs (timestamps, probe timings), so a stable per-day key
+    /// would make --force impossible for a day. Twice beats never.
+    /// </summary>
+    public static string CreateIdempotencyKey() => "dr-" + Guid.NewGuid().ToString("N");
 
     private static ResendSendResponse? Deserialize(string json)
     {

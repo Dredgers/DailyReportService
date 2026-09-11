@@ -56,8 +56,8 @@ public sealed class ReportSchedulerService(
         {
             using var scope = scopes.CreateScope();
             var runner = scope.ServiceProvider.GetRequiredService<ReportRunner>();
-            var outcome = await runner.RunAsync(reportDate, dryRun: false, force: false, trigger, cancellationToken);
-            logger.LogInformation("Run for {ReportDate} finished: {Outcome}", reportDate, outcome);
+            var result = await runner.RunAsync(reportDate, dryRun: false, force: false, trigger, cancellationToken);
+            logger.LogInformation("Run for {ReportDate:yyyy-MM-dd} finished: {Outcome}", reportDate, result.Outcome);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

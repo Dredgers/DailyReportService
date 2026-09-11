@@ -9,11 +9,12 @@ using Microsoft.Extensions.Options;
 namespace DailyReport.Infrastructure.Probes;
 
 /// <summary>
-/// GET /api/puzzle/today on Make Me Red. The game's day is UTC and the report runs well after 00:00 UTC,
-/// so the expected date is simply the report date; the expected puzzle number is deterministic from the
-/// epoch (Red #1 shipped on <see cref="Epoch"/>).
+/// GET /api/puzzle/today on Make Me Red. A probe describes now, not the report date: the expected date is today
+/// in the game's own zone (UTC) at the moment the probe runs, so a deploy-time dry run at 01:00 Copenhagen is
+/// judged against the UTC date the site is actually serving. The expected puzzle number is deterministic from
+/// the epoch (Red #1 shipped on <see cref="Epoch"/>).
 /// </summary>
-public sealed class MakeMeRedPuzzlePublishedProbe(IHttpClientFactory httpClientFactory, IOptions<ReportOptions> reportOptions)
+public sealed class MakeMeRedPuzzlePublishedProbe(IHttpClientFactory httpClientFactory, IOptions<ReportOptions> reportOptions, TimeProvider clock)
     : ProbeBase(httpClientFactory, reportOptions)
 {
     /// <summary>Red #1 shipped on this UTC date; every later puzzleNumber is days-since-this plus one.</summary>
@@ -52,7 +53,7 @@ public sealed class MakeMeRedPuzzlePublishedProbe(IHttpClientFactory httpClientF
             ? parsedNumber
             : null;
 
-        var expectedDate = window.ReportDate;
+        var expectedDate = GameDays.DateIn(clock.GetUtcNow(), game.Zone);
         var expectedDateText = expectedDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var expectedNumber = expectedDate.DayNumber - Epoch.DayNumber + 1;
 

@@ -19,6 +19,9 @@ public enum RunOutcome
     SendFailed,
 }
 
+/// <summary>What a run did, and the report it produced (null when nothing was produced because the date was already sent).</summary>
+public sealed record RunResult(RunOutcome Outcome, Report? Report);
+
 /// <summary>
 /// One report, end to end: collect every game's metrics and probes with each section isolated, compose, render,
 /// archive to disk, send, record. The only thing that fails the run is a failed send; everything else becomes
@@ -39,20 +42,28 @@ public sealed class ReportRunner(
         var options = reportOptions.Value;
         var reportDate = invocation.Date ?? ReportSchedule.ReportDateAt(clock.GetUtcNow(), options.Zone);
 
-        var outcome = await RunAsync(reportDate, invocation.DryRun, invocation.Force, trigger: "once", cancellationToken);
-        return outcome == RunOutcome.SendFailed ? 1 : 0;
+        var result = await RunAsync(reportDate, invocation.DryRun, invocation.Force, trigger: "once", cancellationToken);
+
+        // 0: sent, or a dry run with nothing red. 1: the send failed. 2: a dry run whose report has red lines,
+        // so a deploy script can show amber without parsing the output.
+        return result.Outcome switch
+        {
+            RunOutcome.SendFailed => 1,
+            RunOutcome.DryRun when result.Report is { RedCount: > 0 } => 2,
+            _ => 0,
+        };
     }
 
-    public async Task<RunOutcome> RunAsync(DateOnly reportDate, bool dryRun, bool force, string trigger, CancellationToken cancellationToken)
+    public async Task<RunResult> RunAsync(DateOnly reportDate, bool dryRun, bool force, string trigger, CancellationToken cancellationToken)
     {
         var options = reportOptions.Value;
         var startedAt = clock.GetUtcNow();
         var stopwatch = Stopwatch.StartNew();
 
-        if (!dryRun && !force && await runStore.WasSentAsync(reportDate, cancellationToken))
+        if (!dryRun && !force && await WasSentSafelyAsync(reportDate, cancellationToken))
         {
             logger.LogInformation("Report for {ReportDate:yyyy-MM-dd} was already sent; not sending again (use --force to resend)", reportDate);
-            return RunOutcome.AlreadySent;
+            return new RunResult(RunOutcome.AlreadySent, null);
         }
 
         logger.LogInformation("Running report for {ReportDate:yyyy-MM-dd} (trigger {Trigger}, dry-run {DryRun})", reportDate, trigger, dryRun);
@@ -80,7 +91,18 @@ public sealed class ReportRunner(
         var html = HtmlRenderer.Render(report);
         var text = TextRenderer.Render(report);
 
-        var archive = await ArchiveAsync(options, reportDate, html, text, cancellationToken);
+        // Storage is never allowed to stand between the report and the inbox.
+        string archive;
+        try
+        {
+            archive = await ArchiveAsync(options, reportDate, dryRun, html, text, cancellationToken);
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Could not archive the report under {StateDirectory}; sending anyway", options.StateDirectory);
+            archive = "(archive failed)";
+        }
+
         logger.LogInformation("Report composed in {Elapsed} ms: {Subject}; archived at {Archive}", stopwatch.ElapsedMilliseconds, subject, archive);
 
         var run = new ReportRun
@@ -98,8 +120,8 @@ public sealed class ReportRunner(
             Console.Out.Write(text);
             run.Status = RunStatus.DryRun;
             run.FinishedAtUnixMs = clock.GetUtcNow().ToUnixTimeMilliseconds();
-            await runStore.RecordAsync(run, cancellationToken);
-            return RunOutcome.DryRun;
+            await TryRecordAsync(run, cancellationToken);
+            return new RunResult(RunOutcome.DryRun, report);
         }
 
         try
@@ -108,18 +130,43 @@ public sealed class ReportRunner(
             run.Status = RunStatus.Sent;
             run.ProviderMessageId = receipt.ProviderMessageId;
             run.FinishedAtUnixMs = clock.GetUtcNow().ToUnixTimeMilliseconds();
-            await runStore.RecordAsync(run, cancellationToken);
+            await TryRecordAsync(run, cancellationToken);
             logger.LogInformation("Sent report for {ReportDate:yyyy-MM-dd}: {Subject} (id {MessageId})", reportDate, subject, receipt.ProviderMessageId);
-            return RunOutcome.Sent;
+            return new RunResult(RunOutcome.Sent, report);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             run.Status = RunStatus.Failed;
             run.Error = $"{ex.GetType().Name}: {ex.Message}";
             run.FinishedAtUnixMs = clock.GetUtcNow().ToUnixTimeMilliseconds();
-            await runStore.RecordAsync(run, cancellationToken);
+            await TryRecordAsync(run, cancellationToken);
             logger.LogError(ex, "Sending the report for {ReportDate:yyyy-MM-dd} failed; the rendered report is at {Archive}", reportDate, archive);
-            return RunOutcome.SendFailed;
+            return new RunResult(RunOutcome.SendFailed, report);
+        }
+    }
+
+    private async Task<bool> WasSentSafelyAsync(DateOnly reportDate, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await runStore.WasSentAsync(reportDate, cancellationToken);
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Could not read the run store; assuming {ReportDate:yyyy-MM-dd} was not sent. Twice beats never.", reportDate);
+            return false;
+        }
+    }
+
+    private async Task TryRecordAsync(ReportRun run, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await runStore.RecordAsync(run, cancellationToken);
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Could not record the {Status} run for {ReportDate}; the email itself was not affected", run.Status, run.ReportDate);
         }
     }
 
@@ -149,8 +196,9 @@ public sealed class ReportRunner(
             return (new GameInput(game.Key, game.Name, window, []),
                 [new SourceFailure(game.Key, "Metrics", $"timed out after {timeout.TotalSeconds:0} s")]);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
+            // Includes an OperationCanceledException that is not ours (an HttpClient's own timer, say): still a red line, never a crash.
             logger.LogWarning(ex, "{Game}: metrics failed", game.Key);
             return (new GameInput(game.Key, game.Name, window, []),
                 [new SourceFailure(game.Key, "Metrics", $"{ex.GetType().Name}: {ex.Message}")]);
@@ -180,12 +228,12 @@ public sealed class ReportRunner(
         return results;
     }
 
-    /// <summary>Every rendered report is kept on disk, sent or not, so a failed send loses nothing.</summary>
-    private static async Task<string> ArchiveAsync(ReportOptions options, DateOnly reportDate, string html, string text, CancellationToken cancellationToken)
+    /// <summary>Every rendered report is kept on disk, sent or not, so a failed send loses nothing. Dry runs get their own name so a smoke test never overwrites the report that was actually sent.</summary>
+    private static async Task<string> ArchiveAsync(ReportOptions options, DateOnly reportDate, bool dryRun, string html, string text, CancellationToken cancellationToken)
     {
         var dir = Path.Combine(Path.GetFullPath(options.StateDirectory), "reports");
         Directory.CreateDirectory(dir);
-        var stem = Path.Combine(dir, reportDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        var stem = Path.Combine(dir, reportDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + (dryRun ? "-dryrun" : ""));
         await File.WriteAllTextAsync(stem + ".html", html, cancellationToken);
         await File.WriteAllTextAsync(stem + ".txt", text, cancellationToken);
         return stem + ".html";

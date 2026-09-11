@@ -5,6 +5,8 @@ namespace DailyReport.Worker.Hosting;
 /// <summary>Parsed command line. Kept tiny on purpose; anything richer belongs in configuration.</summary>
 public sealed record Invocation(bool Once, bool DryRun, DateOnly? Date, bool Force, bool HealthCheck)
 {
+    private static readonly HashSet<string> Known = new(StringComparer.Ordinal) { "--once", "--dry-run", "--force", "--healthcheck" };
+
     public static Invocation Parse(string[] args)
     {
         var once = args.Contains("--once", StringComparer.Ordinal);
@@ -18,6 +20,11 @@ public sealed record Invocation(bool Once, bool DryRun, DateOnly? Date, bool For
             if (arg.StartsWith("--date=", StringComparison.Ordinal))
             {
                 date = DateOnly.ParseExact(arg["--date=".Length..], "yyyy-MM-dd", CultureInfo.InvariantCulture);
+            }
+            else if (!Known.Contains(arg))
+            {
+                // A typo must never turn a dry run into a real send; refuse anything we do not recognise.
+                throw new ArgumentException($"Unknown argument '{arg}'. Known: --once, --dry-run, --force, --date=YYYY-MM-DD, --healthcheck.");
             }
         }
 

@@ -12,9 +12,10 @@ namespace DailyReport.Infrastructure.Probes;
 /// GET /api/puzzles on crosswords. <c>currentPublishedAt</c> is the daily's <c>used_at</c>, stamped when it
 /// was promoted around local midnight Europe/Copenhagen — it must fall inside today's game day by the time
 /// the 07:00 report runs. <c>used_at</c> is re-stamped on recycle, so a stale value here means the rotation
-/// did not happen, not that nobody looked.
+/// did not happen at all; a recycled puzzle passes this check (telling fresh from recycled needs yesterday's
+/// currentId, a Phase 2 snapshot).
 /// </summary>
-public sealed class CrosswordsPuzzlePublishedProbe(IHttpClientFactory httpClientFactory, IOptions<ReportOptions> reportOptions)
+public sealed class CrosswordsPuzzlePublishedProbe(IHttpClientFactory httpClientFactory, IOptions<ReportOptions> reportOptions, TimeProvider clock)
     : ProbeBase(httpClientFactory, reportOptions)
 {
     public override string Name => "Puzzle published";
@@ -65,8 +66,10 @@ public sealed class CrosswordsPuzzlePublishedProbe(IHttpClientFactory httpClient
         var localText = local.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
         var detail = $"published {localText} {game.DayTimeZone} · id {id ?? "(missing)"}";
 
-        // The report runs the morning of D; the daily rotates around 00:00-00:30 local, so "today" is D itself.
-        var todayRange = window.RangeOf(window.ReportDate);
+        // A probe describes now: "today" is the current date in the game's zone, whenever the probe happens to run.
+        // The daily rotates around 00:00-00:30 local, so by the 07:00 report today's stamp must be inside today.
+        var today = GameDays.DateIn(clock.GetUtcNow(), game.Zone);
+        var todayRange = GameDays.RangeOf(today, game.Zone);
 
         return todayRange.Contains(publishedAt)
             ? CheckResult.Pass(game.Key, Name, detail, stopwatch.Elapsed)

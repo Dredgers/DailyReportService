@@ -35,6 +35,24 @@ public sealed class MakeMeRedPuzzlePublishedProbeTests
     }
 
     [Test]
+    public async Task Judges_today_in_utc_at_the_moment_it_runs_not_the_report_date()
+    {
+        // 01:30 CEST on the 11th is still 23:30 UTC on the 10th: the site correctly serves the 10th.
+        var lateNight = new DateTimeOffset(2026, 9, 10, 23, 30, 0, TimeSpan.Zero);
+        var numberForThe10th = new DateOnly(2026, 9, 10).DayNumber - Epoch.DayNumber + 1;
+
+        await using var stub = new StubSite();
+        stub.Map("/api/puzzle/today", ctx => ctx.Response.WriteAsync(
+            $$$"""{"date":"2026-09-10","puzzleNumber":{{{numberForThe10th}}},"scramble":[],"par":4,"colors":{}}"""));
+        await stub.StartAsync();
+
+        using var provider = ProbeHost.Build(now: lateNight);
+        var result = await Probe(provider).RunAsync(TestGames.MakeMeRed(stub.BaseUri), Window, CancellationToken.None);
+
+        Assert.That(result.Status, Is.EqualTo(CheckStatus.Pass), result.Detail);
+    }
+
+    [Test]
     public async Task Fails_when_the_date_is_wrong()
     {
         await using var stub = new StubSite();

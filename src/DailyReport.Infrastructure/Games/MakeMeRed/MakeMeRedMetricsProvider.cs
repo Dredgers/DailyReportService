@@ -18,7 +18,9 @@ namespace DailyReport.Infrastructure.Games.MakeMeRed;
 /// per mode, shares); the database supplies the signed-in lane and the return rate.
 ///
 ///   completions (all)    = GoatCounter events solve / solve-four / solve-five, one per mode.
-///   completions (signed) = mmr_results rows with completed_at set, per mode.
+///   completions (signed) = mmr_results rows with completed_at set AND verified, per mode. A merge of guest history
+///                          writes unverified rows with completed_at = now under their historical dates, which would
+///                          rewrite past days retroactively; the leaderboard rule (verified only) applies here too.
 ///   return rate          = signed-in only, any mode.
 /// </summary>
 public sealed class MakeMeRedMetricsProvider(
@@ -65,7 +67,7 @@ public sealed class MakeMeRedMetricsProvider(
                     new MetricDefinition($"{game.Key}.shares", "Engagement", "Shares", Lane.All, MetricUnit.Count, "GoatCounter 'share' events"),
                     days, byEvent.GetValueOrDefault("share") ?? new Dictionary<DateOnly, int>()));
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 logger.LogWarning(ex, "{Game}: GoatCounter failed", game.Key);
                 failures.Add(new SourceFailure(game.Key, "GoatCounter", $"{ex.GetType().Name}: {ex.Message}"));
@@ -76,7 +78,7 @@ public sealed class MakeMeRedMetricsProvider(
         {
             series.AddRange(await CollectFromDatabaseAsync(game, window, cancellationToken));
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning(ex, "{Game}: database metrics failed", game.Key);
             failures.Add(new SourceFailure(game.Key, "Database", $"{ex.GetType().Name}: {ex.Message}"));
@@ -94,7 +96,7 @@ public sealed class MakeMeRedMetricsProvider(
         var lastDate = DateKey(days[^1]);
 
         var completed = await ctx.MmrResults
-            .Where(r => r.CompletedAt != null && string.Compare(r.Date, firstDate) >= 0 && string.Compare(r.Date, lastDate) <= 0)
+            .Where(r => r.CompletedAt != null && r.Verified && string.Compare(r.Date, firstDate) >= 0 && string.Compare(r.Date, lastDate) <= 0)
             .Select(r => new { r.UserId, r.Date, r.Mode })
             .ToListAsync(cancellationToken);
 
@@ -106,7 +108,7 @@ public sealed class MakeMeRedMetricsProvider(
                 .ToDictionary(g => g.Key, g => g.Count());
 
             series.Add(Series.Counts(
-                new MetricDefinition($"{game.Key}.completions.{mode}.signed_in", "Completions", $"Completions · {mode}", Lane.SignedIn, MetricUnit.Count, "signed-in players with a recorded completion"),
+                new MetricDefinition($"{game.Key}.completions.{mode}.signed_in", "Completions", $"Completions · {mode}", Lane.SignedIn, MetricUnit.Count, "verified completions by signed-in players; merged guest history excluded"),
                 days, counts));
         }
 

@@ -34,12 +34,29 @@ real inbox until R11 has passed.
 | R8 Resend sender | done | `e6f4ebe` |
 | R9 orchestration, scheduler, state, health check | done | `a59c1c6` |
 | R10 deploy | script + runbook written (`c05c0e2`); not yet run on the box, `report_ro` not yet created, no real send | |
-| R11 adversarial review | in progress | |
+| R11 adversarial review | done: twelve findings, five fixed before first send, rest recorded below | |
 
 Test counts at this point: 133 unit, 11 integration (Testcontainers Postgres built from both
 games' real SQL). `dotnet run --project src/DailyReport.Worker -- --once --dry-run` works end to
 end against the live sites with no secrets: the database and GoatCounter sections go red, the
 probes run for real.
+
+### What R11 changed (2026-09-11)
+
+Fixed: storage can no longer block the email (archive and run-store failures are logged and the
+send goes ahead); unknown or misspelt flags are rejected; `--force` works within 24 h of a send
+(the Resend idempotency key is per attempt, since Resend answers 409 to a reused key with a
+different payload); the makeme.red signed-in lane counts **verified** completions only, so a
+guest-history merge cannot rewrite past days; both puzzle probes judge "today" from the clock in
+the game's zone rather than the report date; the GoatCounter and Resend clients have no
+`HttpClient.Timeout` racing the resilience handler and the runner treats a foreign cancellation
+as a red line; `report_ro` gets column-level SELECT on `users` (no email) and the ghost tables
+(no recordings); `deploy.sh` shows ⚠ and keeps the container when the dry run has red lines and
+prunes old image tags; dry runs archive under their own name; `HEALTHCHECK --retries=3`.
+
+Recorded for later: "Puzzle published" cannot tell a fresh daily from a recycled one (needs
+yesterday's `currentId`, folded into R15); GoatCounter's day-bucketing zone should be verified
+against the dashboard once a token exists; prefer `SSL Mode=VerifyFull` for the pooler.
 
 ### Found on the way, not in the brief
 
@@ -304,7 +321,7 @@ R2/R3 and R6/R7/R8 can run in parallel with R4/R5 because they share only the
 | R12 | **Referrer split.** GoatCounter `toprefs` per game; top five with counts, "other". Crosswords joins when its GoatCounter site exists (config flip, no code). | S | Sonnet 5 |
 | R13 | **Funnel table.** Arrivals → started → completed → returned, both lanes where they exist (`game_started`; `mmr_results.started`). | M | Opus 5 |
 | R14 | **Engagement.** Streaks and breaks via window functions in each game's zone; ghost consent and named-ghost totals from SQLite snapshots; races (estimator + cross-check), chaotic games. | M | Opus 5 |
-| R15 | **Snapshot store.** SQLite via EF Core: daily point-in-time counts and run history; deltas for timestamp-less metrics. (R9 already creates the file for run history.) | S | Sonnet 5 |
+| R15 | **Snapshot store.** SQLite via EF Core: daily point-in-time counts and run history; deltas for timestamp-less metrics. (R9 already creates the file for run history.) Also snapshot crosswords' `currentId` so "Puzzle published" can Warn when today's daily is yesterday's recycled. | S | Sonnet 5 |
 | R16 | **Remaining probes.** Share card via `og:image` (weekly cadence in config), WebSocket `queryRoom` (crosswords), auth path, then backup age, TLS expiry, `/healthz` puzzles count. | M | Sonnet 5 |
 | R17 | **OpenTelemetry → Grafana Cloud free tier.** One trace per run, metrics for run duration, probe status, sections failed. Needs an account first. | S | Sonnet 5 |
 | R18 | **Sudokus onboarding.** Config entry plus provider. If it shares the crosswords Supabase project, a `game` discriminator column (crosswords "Chunk 13") has to land first or the report cannot tell the rows apart. | S | Sonnet 5 |
