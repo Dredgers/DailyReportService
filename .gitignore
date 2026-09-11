@@ -487,3 +487,6 @@ $RECYCLE.BIN/
 # Local run archive and SQLite state (anchored: Infrastructure/Data must never be ignored on a case-insensitive filesystem).
 /data/
 /src/DailyReport.Worker/data/
+
+# Secrets live in /etc/dailyreport/.env on the box and in a local .env here; never in git.
+/.env

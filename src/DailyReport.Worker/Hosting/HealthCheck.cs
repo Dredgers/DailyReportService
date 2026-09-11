@@ -18,8 +18,16 @@ public static class HealthCheck
         var store = services.GetRequiredService<IRunStore>();
         var clock = services.GetRequiredService<TimeProvider>();
 
+        var path = StateServiceCollectionExtensions.DatabasePath(options);
+        if (!File.Exists(path))
+        {
+            // The scheduler creates the store the moment it starts; before that there is nothing to judge.
+            Console.Out.WriteLine("healthy: state not created yet");
+            return 0;
+        }
+
         var lastSuccess = await store.LastSuccessAsync(cancellationToken);
-        var reference = lastSuccess ?? File.GetCreationTimeUtc(StateServiceCollectionExtensions.DatabasePath(options));
+        var reference = lastSuccess ?? File.GetCreationTimeUtc(path);
         var age = clock.GetUtcNow() - reference;
 
         var healthy = age <= MaxAge;
