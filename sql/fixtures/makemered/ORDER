@@ -1,0 +1,8 @@
+# Applied top to bottom by the integration fixture, after the crosswords files (mmr_results
+# references public.users, which crosswords' schema.sql creates). Mirrors server/sql/README.md
+# in the Make It Red repo. rename_mir_results_to_mmr_results.sql is a one-time rename for a
+# project that predates the app's rename and fails on a fresh database, so it is not applied.
+schema.sql
+grants.sql
+mmr_profiles.sql
+add_mode_to_mmr_results.sql

@@ -1,0 +1,20 @@
+# Applied top to bottom by the integration fixture. Mirrors server/sql/README.md in the
+# CompetitiveCrosswords repo (steps 1-14) with events.sql + events_grants.sql, which that
+# README does not number, placed after ratings.sql so fix_service_role_grants.sql can
+# revoke on the events table. verify_migrations.sql is read-only and not applied.
+schema.sql
+grants.sql
+record_attempt.sql
+leaderboard.sql
+ghosts.sql
+ghost_opponents.sql
+named_ghosts.sql
+ranked.sql
+leaderboard_ghost_win.sql
+fix_client_write_grants.sql
+ghost_pace.sql
+ratings.sql
+events.sql
+events_grants.sql
+fix_service_role_grants.sql
+ghost_assisted.sql

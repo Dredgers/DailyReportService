@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Agent worktrees live inside the repo; never commit them.
+.claude/worktrees/

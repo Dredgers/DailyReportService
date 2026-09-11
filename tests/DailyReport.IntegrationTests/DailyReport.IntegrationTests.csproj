@@ -21,6 +21,6 @@
   </ItemGroup>
   <ItemGroup>
     <!-- The synced copies of the sibling repos' SQL, applied in order by the fixture. -->
-    <None Include="..\..\sql\**\*.sql" Link="sql\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\sql\**\*" Link="sql\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
