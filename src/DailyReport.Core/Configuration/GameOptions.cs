@@ -85,6 +85,19 @@ public enum ProbeCadence
     Weekly,
 }
 
+/// <summary>
+/// The name of every check the report can run, in one place, so a game's <see cref="ProbeOptions.Paused"/>
+/// entry can be validated at startup instead of failing silently as a check that never stopped going red.
+/// </summary>
+public static class ProbeNames
+{
+    public const string SiteUp = "Site up";
+    public const string PuzzlePublished = "Puzzle published";
+    public const string PuzzleQueue = "Puzzle queue";
+
+    public static readonly IReadOnlyList<string> All = [SiteUp, PuzzlePublished, PuzzleQueue];
+}
+
 public sealed class ProbeOptions
 {
     public PuzzlePublishedProbe PuzzlePublished { get; set; } = PuzzlePublishedProbe.None;
@@ -96,6 +109,18 @@ public sealed class ProbeOptions
     public bool WebSocket { get; set; }
 
     public OgImageOptions? OgImage { get; set; }
+
+    /// <summary>
+    /// Checks that are expected to fail because of a deliberate decision, mapped to the reason. A paused check
+    /// still appears in the report, as Skipped with its reason, rather than red: a red line every morning that
+    /// you are meant to ignore is worse than no line at all, because it teaches you to ignore red.
+    /// Keys are check names from <see cref="ProbeNames"/> and are validated on startup. Remove the entry to resume.
+    /// </summary>
+    public Dictionary<string, string> Paused { get; set; } = [];
+
+    /// <summary>The reason this check is paused, or null if it should run. Case-insensitive, since config keys are hand-typed.</summary>
+    public string? PauseReasonFor(string checkName) =>
+        Paused.FirstOrDefault(kv => string.Equals(kv.Key, checkName, StringComparison.OrdinalIgnoreCase)).Value;
 }
 
 public sealed class OgImageOptions

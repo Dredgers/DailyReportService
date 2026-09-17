@@ -18,7 +18,7 @@ namespace DailyReport.Infrastructure.Probes;
 public sealed class CrosswordsPuzzlePublishedProbe(IHttpClientFactory httpClientFactory, IOptions<ReportOptions> reportOptions, TimeProvider clock)
     : ProbeBase(httpClientFactory, reportOptions)
 {
-    public override string Name => "Puzzle published";
+    public override string Name => ProbeNames.PuzzlePublished;
 
     public override bool AppliesTo(GameOptions game) => game.Probes.PuzzlePublished == PuzzlePublishedProbe.CrosswordsApiPuzzles;
 

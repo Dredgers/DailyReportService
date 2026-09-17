@@ -20,7 +20,7 @@ public sealed class MakeMeRedPuzzlePublishedProbe(IHttpClientFactory httpClientF
     /// <summary>Red #1 shipped on this UTC date; every later puzzleNumber is days-since-this plus one.</summary>
     private static readonly DateOnly Epoch = new(2026, 8, 14);
 
-    public override string Name => "Puzzle published";
+    public override string Name => ProbeNames.PuzzlePublished;
 
     public override bool AppliesTo(GameOptions game) => game.Probes.PuzzlePublished == PuzzlePublishedProbe.MakeMeRedApiToday;
 

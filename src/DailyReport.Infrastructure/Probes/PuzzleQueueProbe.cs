@@ -20,7 +20,7 @@ public sealed class PuzzleQueueProbe(
     IOptions<PuzzleSourceOptions> puzzleSourceOptions)
     : ProbeBase(httpClientFactory, reportOptions)
 {
-    public override string Name => "Puzzle queue";
+    public override string Name => ProbeNames.PuzzleQueue;
 
     public override bool AppliesTo(GameOptions game) => game.Probes.PuzzleQueueMin is not null;
 

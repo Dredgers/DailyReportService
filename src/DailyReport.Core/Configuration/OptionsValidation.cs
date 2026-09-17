@@ -114,6 +114,19 @@ public static class OptionsValidation
             {
                 errors.Add($"{where}: only Crosswords has a puzzle queue.");
             }
+
+            foreach (var (checkName, reason) in g.Probes.Paused)
+            {
+                if (!ProbeNames.All.Contains(checkName, StringComparer.OrdinalIgnoreCase))
+                {
+                    errors.Add($"{where}: Probes:Paused names no such check '{checkName}'. Known: {string.Join(", ", ProbeNames.All)}.");
+                }
+
+                if (string.IsNullOrWhiteSpace(reason))
+                {
+                    errors.Add($"{where}: Probes:Paused['{checkName}'] needs a reason; it is printed in the report so you remember why.");
+                }
+            }
         }
 
         return errors;

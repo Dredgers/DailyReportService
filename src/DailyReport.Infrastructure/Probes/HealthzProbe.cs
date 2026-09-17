@@ -14,7 +14,7 @@ namespace DailyReport.Infrastructure.Probes;
 public sealed class HealthzProbe(IHttpClientFactory httpClientFactory, IOptions<ReportOptions> reportOptions)
     : ProbeBase(httpClientFactory, reportOptions)
 {
-    public override string Name => "Site up";
+    public override string Name => ProbeNames.SiteUp;
 
     public override bool AppliesTo(GameOptions game) => true;
 

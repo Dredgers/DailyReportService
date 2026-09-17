@@ -1,5 +1,6 @@
 using DailyReport.Core.Abstractions;
 using DailyReport.Core.Configuration;
+using DailyReport.Core.Model;
 using DailyReport.Infrastructure.State;
 using DailyReport.Tests.State;
 using DailyReport.Worker.Hosting;
@@ -157,6 +158,38 @@ public sealed class ReportRunnerTests
             Assert.That(await store.WasSentAsync(Today, default), Is.False);
             Assert.That(await store.LastSuccessAsync(default), Is.Not.Null, "a dry run still proves the pipeline works");
             Assert.That(File.Exists(Path.Combine(state.Directory, "reports", "2026-09-11-dryrun.txt")), Is.True, "a dry run never overwrites the sent report's archive");
+        });
+    }
+
+    [Test]
+    public async Task A_paused_check_is_skipped_with_its_reason_and_never_reaches_the_site()
+    {
+        var ran = false;
+        var wouldFail = new FakeProbe(
+            "Puzzle published",
+            _ => true,
+            (g, _, _) => { ran = true; return Task.FromResult(CheckResult.Fail(g.Key, "Puzzle published", "13 days stale", TimeSpan.Zero)); });
+
+        var game = new GameOptions
+        {
+            Key = "crosswords", Name = "Competitive Crosswords", BaseUrl = "https://www.competitivecrosswords.com", DayTimeZone = "Europe/Copenhagen",
+            Metrics = new MetricsOptions { Provider = MetricsProvider.Crosswords, Arrivals = ArrivalsSource.EventsTable },
+            Probes = new ProbeOptions { Paused = { ["Puzzle published"] = "puzzle supply on hold" } },
+        };
+        var report = new ReportOptions { To = ["someone@example.invalid"], From = "report@example.invalid", StateDirectory = state.Directory };
+        var runner = new ReportRunner(
+            Options.Create(report), Options.Create(new GamesOptions { Games = [game] }),
+            [FakeProvider.Healthy(MetricsProvider.Crosswords)], [wouldFail, FakeProbe.Passing("Site up")],
+            email, store, new FixedClock(Now), NullLogger<ReportRunner>.Instance);
+
+        var result = await runner.RunAsync(Today, dryRun: false, force: false, "test", default);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ran, Is.False, "a paused check must not reach the site at all");
+            Assert.That(result.Report!.Status, Is.EqualTo(ReportStatus.Green), "a known pause is not an alarm");
+            Assert.That(email.Sent[0].Subject, Is.EqualTo("Daily report 2026-09-11 · all green"));
+            Assert.That(email.Sent[0].Text, Does.Contain("paused: puzzle supply on hold"), "but it is still visible, with the reason");
         });
     }
 

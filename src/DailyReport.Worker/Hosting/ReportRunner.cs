@@ -212,6 +212,12 @@ public sealed class ReportRunner(
 
         var results = await Task.WhenAll(applicable.Select(async probe =>
         {
+            // A deliberately paused check is reported, not run: still visible, never red, no request to the site.
+            if (game.Probes.PauseReasonFor(probe.Name) is { } reason)
+            {
+                return CheckResult.Skipped(game.Key, probe.Name, $"paused: {reason}");
+            }
+
             var sw = Stopwatch.StartNew();
             try
             {

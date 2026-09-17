@@ -87,6 +87,31 @@ public sealed class OptionsValidationTests
     }
 
     [Test]
+    public void A_paused_check_must_name_a_real_check_and_carry_a_reason()
+    {
+        static GamesOptions WithPause(string name, string reason) => new()
+        {
+            Games =
+            [
+                new GameOptions
+                {
+                    Key = "x", Name = "X", BaseUrl = "https://x.example", DayTimeZone = "UTC",
+                    Metrics = new MetricsOptions { Provider = MetricsProvider.MakeMeRed },
+                    Probes = new ProbeOptions { Paused = { [name] = reason } },
+                },
+            ],
+        };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(OptionsValidation.Validate(WithPause("Puzzle published", "supply on hold")), Is.Empty);
+            Assert.That(OptionsValidation.Validate(WithPause("puzzle PUBLISHED", "supply on hold")), Is.Empty, "hand-typed keys are case-insensitive");
+            Assert.That(OptionsValidation.Validate(WithPause("Puzle published", "typo")), Has.Exactly(1).Contains("no such check"));
+            Assert.That(OptionsValidation.Validate(WithPause("Puzzle queue", "  ")), Has.Exactly(1).Contains("needs a reason"));
+        });
+    }
+
+    [Test]
     public void Duplicate_keys_are_rejected()
     {
         GameOptions Game() => new()

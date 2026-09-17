@@ -60,12 +60,14 @@ against the dashboard once a token exists; prefer `SSL Mode=VerifyFull` for the 
 
 ### Found on the way, not in the brief
 
-- **Competitive Crosswords' daily has not rotated since 2026-09-04 23:28 Europe/Copenhagen.**
-  The very first dry run's "Puzzle published" check failed: `/api/puzzles` reports
-  `currentPublishedAt` a week old while `/healthz` says the process has been up 6d 16h with 15
-  puzzles loaded. Either `syncPuzzlesAndDaily()` is not promoting (its 30-minute timer, or the
-  puzzle-source project is unreachable) or the approved queue is empty and the recycle path is
-  failing too. Worth looking at in the crosswords repo before anything else.
+- **Competitive Crosswords' daily has not rotated since 2026-09-04 23:28 Europe/Copenhagen,
+  and that is deliberate.** Puzzle supply is on hold while other projects are sorted (the
+  puzzles are also too hard, a separate matter). The first dry run caught it as a red
+  "Puzzle published" check, which is the system working; on 2026-09-17 both crosswords puzzle
+  checks were paused in `appsettings.json` instead. Remove those two `Probes:Paused` entries
+  when supply resumes. Mechanically, the sync aborts before the rotation decision (the library
+  read from the puzzle-source project throws and the timer logs "Daily rotation error" every
+  30 minutes), so the frozen daily is a symptom of the pause, not a second fault.
 - **`cc_dashboard_ro` can read nothing.** Every crosswords table has RLS on; a role with SELECT
   but no policy gets zero rows and no error. `sql/report_ro.sql` here creates a per-table read
   policy for `report_ro` for that reason (and the integration tests prove it reads). The Grafana
@@ -185,11 +187,16 @@ Schema for both apps is hand-run SQL in the Supabase dashboard:
 - [x] **OpenTelemetry is phase 2** (no Grafana Cloud account yet). v1 logs structured
       JSON to stdout; Docker keeps it.
 
-Open:
+- [x] **Hosting: the Hetzner box**, decided 2026-09-17. A third container beside `cc` and
+      `mmr`, same `ops/deploy.sh` shape, no inbound port, a named volume for state.
+      `ops/deploy.sh` and `docs/DEPLOY.md` are written for it.
+- [x] **A check that is expected to fail is paused, not red** (2026-09-17). `Probes:Paused`
+      maps a check name to a reason; the check is reported as Skipped with that reason and
+      never reaches the site. A red line every morning that you are meant to ignore is worse
+      than no line, because it teaches you to ignore red. Startup validation rejects a name
+      that matches no check, so a typo cannot silently un-pause one.
 
-- [ ] **Hosting.** Recommendation: third container on the Hetzner box, same
-      `ops/deploy.sh` shape as the other two apps, no inbound port. `ops/deploy.sh` and
-      `docs/DEPLOY.md` are written for that option; the image is the same anywhere.
+Open:
 - [ ] **Sender domain.** "Neutral" needs a domain verified in Resend (DNS records).
       Until one exists, R8 is tested against a stub and the first real send can use
       Resend's onboarding sender to the account's own address.

@@ -129,6 +129,32 @@ docker rm -f dr && docker run -d --name dr --restart=always \
 The SQLite schema is created by the application and has no migrations, so any build can read
 the volume.
 
+## 3b. Pausing a check you know will fail
+
+A check that is expected to fail because of a deliberate decision belongs in `Probes:Paused`
+rather than in the morning's red banner. Competitive Crosswords' two puzzle checks are paused
+today, because puzzle supply is on hold:
+
+```jsonc
+"Probes": {
+  "PuzzlePublished": "CrosswordsApiPuzzles",
+  "PuzzleQueueMin": 3,
+  "Paused": {
+    "Puzzle published": "puzzle supply on hold since 2026-09-04 while other projects are sorted",
+    "Puzzle queue": "puzzle supply on hold since 2026-09-04"
+  }
+}
+```
+
+A paused check still appears in the health table, as `⏭ SKIPPED` with its reason, and makes no
+request to the site. The report stays green, which is the honest state: the site is up and the
+rotation is off on purpose. **Delete the entry to resume the check** — that is the only step.
+The reason is printed every morning so a pause cannot quietly become permanent.
+
+Valid names are `Site up`, `Puzzle published` and `Puzzle queue`, matched case-insensitively.
+A name that matches no check, or an empty reason, fails validation on startup rather than
+silently leaving the check running.
+
 ## 4. Changing what is reported
 
 Games are configuration in `src/DailyReport.Worker/appsettings.json`: key, name, origin, day
